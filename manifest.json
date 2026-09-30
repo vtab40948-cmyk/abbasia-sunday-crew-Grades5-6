@@ -3,7 +3,7 @@
   "short_name": "Sunday Crew",
   "lang": "ar-EG",
   "dir": "rtl",
-  "start_url": "./sunday_crew_firestore.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#FFF9EA",
