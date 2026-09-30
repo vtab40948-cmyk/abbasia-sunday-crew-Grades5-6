@@ -1,0 +1,148 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function isLeader() {
+      return signedIn() && exists(/databases/$(database)/documents/leaders/$(request.auth.uid));
+    }
+
+    match /students/{uid} {
+      allow read: if isLeader() || isSelf(uid);
+      // Student accounts are created by leaders after the Firebase Auth account is created.
+      allow create: if isLeader()
+        && request.resource.data.role == 'student'
+        && request.resource.data.points == 0;
+      allow update: if isLeader()
+        || (isSelf(uid)
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.points == resource.data.points
+            && request.resource.data.team == resource.data.team
+            && request.resource.data.streak == resource.data.streak
+            && request.resource.data.lastAttendanceDate == resource.data.lastAttendanceDate
+            && request.resource.data.name == resource.data.name
+            && request.resource.data.birthday == resource.data.birthday
+            && request.resource.data.taskRole == resource.data.taskRole
+            && request.resource.data.loginCode == resource.data.loginCode
+            && request.resource.data.createdBy == resource.data.createdBy
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['language','avatar','updatedAt']));
+      allow delete: if isLeader();
+    }
+
+    match /publicStudents/{uid} {
+      allow read: if signedIn();
+      allow create: if isLeader();
+      allow update: if isLeader()
+        || (isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avatar','updatedAt']));
+      allow delete: if isLeader();
+    }
+
+    match /leaders/{uid} {
+      allow read: if isLeader() || isSelf(uid);
+      allow create, update, delete: if isLeader();
+    }
+
+    match /qtSubmissions/{id} {
+      allow read: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.studentId == request.auth.uid && request.resource.data.approved == false;
+      allow update, delete: if isLeader();
+    }
+
+    match /memoryTasks/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /memorySubmissions/{id} {
+      allow read: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.studentId == request.auth.uid && request.resource.data.approved == false;
+      allow update, delete: if isLeader();
+    }
+
+    match /posts/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /classGoals/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /settings/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /attendanceLogs/{id} {
+      allow read, create, update, delete: if isLeader();
+    }
+
+    match /events/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /eventRSVPs/{id} {
+      allow read: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+    }
+
+    match /challenges/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /challengeSubmissions/{id} {
+      allow read: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.studentId == request.auth.uid && request.resource.data.status == 'pending';
+      allow update, delete: if isLeader();
+    }
+
+    match /rewards/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isLeader();
+    }
+
+    match /rewardRedemptions/{id} {
+      allow read: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.studentId == request.auth.uid && request.resource.data.status == 'pending';
+      allow update, delete: if isLeader();
+    }
+
+    match /notifications/{id} {
+      allow read: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isLeader() || (signedIn() && request.resource.data.studentId == request.auth.uid);
+      allow update: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow delete: if isLeader();
+    }
+
+    match /messages/{id} {
+      allow read: if isLeader()
+        || (signedIn() && resource.data.recipientStudentId == request.auth.uid)
+        || (signedIn() && resource.data.senderId == request.auth.uid);
+      allow create: if isLeader()
+        || (signedIn()
+            && request.resource.data.senderRole == 'student'
+            && request.resource.data.senderId == request.auth.uid
+            && request.resource.data.recipientStudentId == request.auth.uid
+            && request.resource.data.toLeaders == true);
+      allow update: if isLeader()
+        || (signedIn() && resource.data.recipientStudentId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read','readAt']));
+      allow delete: if isLeader();
+    }
+
+    match /pointHistory/{id} {
+      allow read: if isLeader() || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create, update, delete: if isLeader();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
